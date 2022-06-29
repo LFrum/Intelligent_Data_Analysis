@@ -1,0 +1,307 @@
+---
+title: "Group10-Rumainum-HW7"
+author: "Lince Rumainum"
+date: "November 14, 2019"
+output: word_document
+---
+
+## PROBLEM 1
+
+```{r, echo=TRUE, fig.width=16, fig.height=10}
+# list of libraries for HW7
+library(car)        # for 'symbox' function
+library(EnvStats)   # for "boxcox" function
+library(mlbench)    
+library(ggplot2)
+#load all of the packages associated with the tidyverse
+#includes dplyr, tidyr, and magritter
+library(tidyverse)
+library (VIM) # for aggr function
+library (mice) # for imputation 
+##pastecs has a function called stat.desc that provides one quick way at looking at some summary statistics
+library(pastecs)
+library (forcats) #fct_lump
+library (moments)
+library(ggpubr) # ggscater
+library(sjmisc) # mmergeimputation
+
+# for the non-linear modeling :
+library(MASS) #for M-estimation method of robust regression: rlm
+library(lars)
+library(glmnet)
+library(ISLR)
+library(elasticnet)
+library(earth) 
+library(rgl)           #for rotating graphics library
+library(rpart)         # CART algorithm
+library(MLmetrics)
+library(party)         # to print trees
+library(partykit)      # to print trees using "party"
+library(rattle)        # for graphics
+library(adabag)        # for boosting
+library(ipred)         # for bagging and error estimation
+library(randomForest)  # for Random Forests
+library(caret)         # for training and modeling
+# one semi-fancy SAS-like cross tabulation function
+library(gmodels)
+library(ROCR) # ROC curve
+########################################################################
+# Training Data
+########################################################################
+
+# load training data
+dfTrain <- read.csv("C:/Users/Lince/Documents/Fall 2019/DSA5103-IntelligentDataAnalysis/HW/HW-7/hm7-Train.csv")
+dfTest <- read.csv("C:/Users/Lince/Documents/Fall 2019/DSA5103-IntelligentDataAnalysis/HW/HW-7/hm-7-Test.csv")
+
+# make a copy of dfTrain & dfTest
+dfTr <- dfTrain
+dfTs <- dfTest
+
+# see missing value in training data
+dfTr %>% select_all %>% mutate_all(is.na) %>% summarise_all(mean) %>% glimpse()
+# get numeric columns only
+dfTr_Num <- dfTrain %>% select_if(is.numeric)
+# use VIM package to see the missing data on the numeric data frame
+md.pattern(dfTr_Num)
+aggr_plot <- aggr(dfTr_Num, col=c('navyblue','red'), numbers = TRUE, sortVars = TRUE, 
+                  labels=names(data), cex.axis=.6, gap = 3, ylab=c("Histogram of missing data","Pattern"))
+
+dfTr_woNA <- dfTr
+# get rows without any of the missing data for diagnosis and race since it is a very small amount
+dfTr_woNA <- dfTr_woNA[-which(is.na(dfTr_woNA$diagnosis)), ]
+dfTr_woNA <- dfTr_woNA[-which(is.na(dfTr_woNA$race)), ]
+colnames(dfTr_woNA)
+
+# exclude column(s): payer_code and medical_specialty 
+# since they have  over 30% missing values
+dfTr_new <- dfTr_woNA[,-c(9, 10, 17,24,41)]
+dfTs_new <- dfTs[,-c(9, 10, 17,24,41)]
+
+#colnames(dfTr_new)
+#dfTr_woNA <- dfTr_woNA[-which(is.na(dfTr_woNA$payer_code)), ]
+#dfTr_woNA <- dfTr[-which(is.na(dfTr$medical_specialty)), ]
+
+# train data info
+(nrow(dfTr) - nrow(dfTr_new)) / nrow(dfTr) * 100 
+# 2.28848% data was removed
+#colnames(dfTr_new)
+#str(dfTr_new)
+
+
+# get quarter of the training data
+dfTr_quarter <- dfTr_Num %>% sample_frac(.25)
+colnames(dfTr_quarter)
+# PCA
+# compute pca using prcomp
+dfcTrain_pca <- prcomp(dfTr_quarter,scale = T)
+summary(dfcTrain_pca) # summary of PCA
+
+
+library(ggbiplot)
+# biplot for PCA 1 and PCA 2
+ggbiplot(dfcTrain_pca, obs.scale = 1, var.scale = 1, varname.size = 8, varname.adjust = 1.1, varname.abbrev = FALSE,
+         labels.size = 5, alpha = 0.1, choices = (c(1,2)), circle = TRUE, ellipse = TRUE) +
+  xlim(-5,10) +
+  ylim(-10,10)
+# to resolve error for dplyr
+detach(package:ggbiplot)
+detach(package:plyr)
+
+
+###########################################
+############# DECISION TREE ###############
+###########################################
+
+#use CART to build a single tree
+dfTr_new$readmitted <- as.factor(dfTr_new$readmitted)
+fit_st <- rpart(data=dfTr_new, readmitted ~.)
+fitTreeParty<-as.party(fit_st)
+plot(fitTreeParty)
+
+# check on training data
+pred = predict(fit_st, type="class")
+confusionMatrix(pred, as.factor(dfTr_new$readmitted))
+
+#Train Accuracy:   0.6133
+#Kappa:            0.2129
+
+# check on test data
+dfTs_new$readmitted <- NA
+dfTs_new$readmitted <- as.factor(dfTs_new$readmitted)
+predST = predict(fit_st, newdata=dfTs_new, type="class")
+#confusionMatrix(predST, dfTs_new$readmitted)
+
+# summary of the single decision tree
+summary(fit_st)
+
+#examine variable importance
+fit_st$variable.importance
+barplot(fit_st$variable.importance, main = "CART Variable Importance")
+
+varImp(fit_st)   #from caret package 
+
+fit_st$cptable  #this extracts the complexity paramater cost 
+#larger values of CP are associated with less complex trees
+
+plotcp(fit_st) # check what cp(s) value for purning
+
+#prune tree
+pfit <- prune(fit_st, cp = 0.043) #setting the cp to 0.043 will produce tree with 2 leaves
+fancyRpartPlot(pfit)
+
+predPrune = predict(pfit, newdata=dfTr_new, type="class")
+confusionMatrix(predPrune, as.factor(dfTr_new$readmitted))
+
+#Train Accuracy:   0.6133
+#Kappa:            0.2129
+
+# the pruning the does not change the accuracy or kappa since readmitted only have 2 levels
+# because of that the tree only prduced two leaves
+
+# get result for readmitted prediction
+results_st<-tibble(patientID=dfTs$patientID, predReadmit=predict(pfit, newdata=dfTs_new, type="vector"))
+final_st <- results_st %>% mutate(predReadmit = 
+                                replace(predReadmit, which(predReadmit>1), 1))
+
+submission <- final_st
+path <- "C:\\Users\\Lince\\Documents\\Fall 2019\\DSA5103-IntelligentDataAnalysis\\HW\\HW-7\\"
+submissionFile <- paste(path, "Submission-st1.csv", sep = "")
+write.csv(submission, submissionFile, row.names = F)
+
+######################################
+############# BAGGING ################
+######################################
+
+fitBag <- bagging(readmitted ~ ., data = dfTr_new, coob = T)  #coob=T --> compute oob error estimate
+summary(fitBag)
+
+predBag1 = predict(fitBag, newdata=dfTr_new, type="class")
+confusionMatrix(predBag1, as.factor(dfTr_new$readmitted))
+
+predBag1 = predict(fitBag, newdata=dfTs_new, type="class")
+confusionMatrix(predBag1, as.factor(dfTs_new$readmitted))
+
+#predBag = predict(fitBag, newdata=dfTs_new)
+#predBag = factor(predBag, levels = levels(dfTs_new$readmitted))
+#confusionMatrix(predBag, dfTr_new$readmitted)
+#confusionMatrix(predBag, dfTs_new$readmitted)
+
+# get result for readmitted prediction
+results_bag <- tibble(patientID = dfTs_new$patientID, predReadmit = predBag)
+final_bag <- results_bag %>% mutate(predReadmit = 
+                                      replace(predReadmit, which(predReadmit>1), 1))
+
+submission <- final_bag
+path <- "C:\\Users\\Lince\\Documents\\Fall 2019\\DSA5103-IntelligentDataAnalysis\\HW\\HW-7\\"
+submissionFile <- paste(path, "Submission-bag1.csv", sep = "")
+write.csv(submission, submissionFile, row.names = F)
+ 
+
+############################################
+########## RANDOM FOREST ###################
+############################################
+#let's tune across mtry = 2,3,...,6
+rfGrid <-  expand.grid(mtry = 2:6)  
+# use 25% of training data
+dfTr_quarter <- dfTr_new %>% sample_frac(0.25)
+# random forest model 
+rf_model<-train(readmitted~.,data=dfTr_quarter,
+                method="rf",  #random forest
+                trControl=trainControl(method="cv",number=3),  #cross-validation 
+                tuneGrid=rfGrid,   #hyper-parameter tuning
+                allowParallel=TRUE)
+
+#prints out the CV accuracy and kappa for each mtry value
+print(rf_model)
+
+#the best model (based on tuning grid)
+print(rf_model$finalModel)
+
+results_rf<-tibble(patientID=dfTs$patientID, predReadmit=predict(rf_model,dfTs))
+final_rf <- results_rf %>% mutate(predReadmit = 
+                                    replace(predReadmit, which(predReadmit>1), 1))
+
+submission <- final_rf
+path <- "C:\\Users\\Lince\\Documents\\Fall 2019\\DSA5103-IntelligentDataAnalysis\\HW\\HW-7\\"
+submissionFile <- paste(path, "Submission-rfFit1.csv", sep = "")
+write.csv(submission, submissionFile, row.names = F)
+
+# use 50% of training data
+dfTr_half<- dfTr_new %>% sample_frac(0.50)
+# random forest model 
+rf_model2<-train(readmitted~.,data=dfTr_half,
+                 method="rf",  #random forest
+                 trControl=trainControl(method="cv",number=3),  #cross-validation 
+                 tuneGrid=rfGrid,   #hyper-parameter tuning
+                 allowParallel=TRUE)
+
+#prints out the CV accuracy and kappa for each mtry value
+print(rf_model2)
+
+#the best model (based on tuning grid)
+print(rf_model2$finalModel)
+
+results_rf<-tibble(patientID=dfTs$patientID, predReadmit=predict(rf_model2,dfTs))
+final_rf <- results_rf %>% mutate(predReadmit = 
+                                    replace(predReadmit, which(predReadmit>1), 1))
+
+submission <- final_rf
+path <- "C:\\Users\\Lince\\Documents\\Fall 2019\\DSA5103-IntelligentDataAnalysis\\HW\\HW-7\\"
+submissionFile <- paste(path, "Submission-rfFit2.csv", sep = "")
+write.csv(submission, submissionFile, row.names = F)
+
+# random forest using different package
+?randomForest
+dfTr_new2 <- dfTr_new %>% sample_frac(.10)
+fitRF2 <- randomForest(readmitted ~ ., data = dfTr_new2, importance = T, ntrees=10, mtry=3, allowParallel=TRUE)
+
+predRF = predict(fitRF2, newdata=dfTr_new)
+
+predRF = factor(predRF, levels = levels(dfTr_new$readmitted))
+confusionMatrix(predRF, dfTr_new$readmitted)
+
+#Test Accuracy:   0.6401
+#Kappa:           0.2651
+
+results_RF2<-tibble(patientID=dfTs_new$patientID, predReadmit=predRF = predict(fitRF2, newdata=dfTs_new))
+final_RF2<- results_RF2 %>% mutate(predReadmit = 
+                                     replace(predReadmit, which(predReadmit>1), 1))
+
+submission <- final_RF2
+path <- "C:\\Users\\Lince\\Documents\\Fall 2019\\DSA5103-IntelligentDataAnalysis\\HW\\HW-7\\"
+submissionFile <- paste(path, "Submission-RF3.csv", sep = "")
+write.csv(submission, submissionFile, row.names = F)
+
+
+
+###################################
+########## MARS ###################
+###################################
+str(dfTr_new )
+colnames(dfTr_new)
+dfTr_mars <- dfTr_new [,-c(32,33)]
+dfTs_mars <- dfTs_new [,-c(32,33)]
+marsFit <- earth(readmitted ~ ., dfTr_mars, degree = 3, nfold = 3)
+summary(marsFit)
+sqrt(mean(marsFit$residuals^2)) #RSME
+
+marsFit2 <- earth(readmitted ~ ., dfTr_mars, degree = 5, nfold = 3)
+summary(marsFit2)
+sqrt(mean(marsFit2$residuals^2)) #RSME
+plot(marsFit)
+
+dfTs$readmitted <- NA
+results_marsFit<-tibble(patientID=dfTs$patientID, predReadmit=predict(marsFit,dfTs_mars))
+apply(results_marsFit,2,myMeanNAsFun) 
+nrow(results_marsFit)
+# write submission to csv file
+path <- "C:\\Users\\Lince\\Documents\\Fall 2019\\DSA5103-IntelligentDataAnalysis\\HW\\HW-7\\"
+submissionFile <- paste(path, "Submission-marsFit.csv", sep = "")
+
+final_marsFit <- results_marsFit %>% mutate(predReadmit = 
+                                              replace(predReadmit, which(predReadmit>1), 1))
+
+submission <- final_marsFit
+write.csv(submission, submissionFile, row.names = F)
+
+```

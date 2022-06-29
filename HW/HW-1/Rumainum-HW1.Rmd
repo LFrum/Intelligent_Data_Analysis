@@ -1,0 +1,222 @@
+---
+title: "Rumainum-HW1"
+author: "Lince Rumainum"
+date: "August 27, 2019"
+output: word_document
+---
+
+## Problem 1
+```{r, echo=TRUE}
+# library
+library(moments) # for skewness and kurtosis function
+library(survival) # for problem 1e - kidney data sets
+
+# Problem 1a
+# assigned values to variable x
+x <- c(3, 12, 6, -5, 0, 8, 15, 1, -10, 7)
+x
+
+# Problem 1b
+# Assigned variable y as a sequence of length of 10 with range from minimum value of x to maximum value of x
+y <- seq(min(x), max(x), length = 10)
+y
+
+# Problem 1c
+# the sum, mean, standard deviation, variance, mean absolute deviation, quartiles, and quintiles for x and y
+sum(x) # sum
+mean(x) # mean
+sd(x) # standard deviation
+var(x) # variance
+mad(x) # mean absolute deviation
+quantile(x, prob=round(seq(0,1,length=4),digits=2)) # quartiles
+quantile(x, prob=seq(0,1,length=5)) # quintiles
+
+sum(y) # sum
+mean(y) # mean
+sd(y) # standard deviation
+var(y) # variance
+mad(y) # mean absolute deviation
+quantile(y, prob=round(seq(0,1,length=4),digits=2)) # quartiles
+quantile(y, prob=seq(0,1,length=5)) # quintiles
+
+# Problem 1d
+# Create a new 7 element vector z by using R to randomly sample from x with replacement.
+z = sample(x, size = 7, replace = TRUE) 
+z
+
+# Problem 1e
+# Find a package (or packages) that provide the statistical measures skewness and kurtosis. Use the
+# appropriate functions from the package to calculate the skewness and kurtosis of x
+data(kidney, package="survival")
+
+kidney # Kidney catheter data from 'survival' package
+
+# skewness in the time of the kidney catheter's patients
+skewness(kidney$time) 
+# kurtosis in the time of the kidney catheter's patients
+kurtosis(kidney$time) 
+
+# Problem 1f
+# Use t.test() to compute a statistical test for differences in means between the vectors x and y.
+# Are the differences in means significant? 
+# No, it does not, the mean difference is only 1.2 from mean of x = 3.7 and the mean of y = 2.5 (stated below in t.test()).
+t.test(x,y)
+
+# Problem 1g
+# Sort the vector x and re-run the t-test as a paired t-test
+x.sort <- sort(x)
+x.sort
+t.test(x.sort, y, paired = TRUE)
+
+# Problem 1h
+# Create a logical vector that identifies which numbers in x are negative
+x.logical <- NULL # set an empty x.logical
+# assign TRUE or FALSE accordingly when x is < 0
+x.logical = x < 0
+x.logical
+
+# Problem 1i
+# Use this logical vector to remove all entries with negative numbers from x. (Make sure to overwrite
+# the vector x so that the new vector x has 8 elements!)
+x[x.logical == TRUE] <- NA # change the negative numbers to NA value(s)
+x <- x[!is.na(x)] # removing NA value(s) from x
+x
+
+####################
+# END OF PROBLEM 1 #
+####################
+
+```
+
+## Problem 2
+```{r, echo=TRUE}
+# Problem 2a
+college <- read.csv(file="college.csv", header=TRUE, sep=",")
+
+# Problem 2b
+rownames (college) <- college [,1] # given each row a name corresponding to the appropriate university
+View (college) # view college data sets
+
+college <- college [,-1] # remove the college name column
+
+# Problem 2c-i
+summary(college)
+
+# Problem 2c-ii
+#help(pairs)
+pairs(college[,1:10])
+
+# Problem 2c-iii
+par(mfrow=c(1,3))
+
+plot(college$Private, college$Apps, xlab = "Private University", ylab ="Number of Student Applicants", main = "University's Applicants")
+
+plot(college$Private, college$Accept, xlab = "Private University", ylab ="Accepted Students", main = "Accepted to University")
+
+plot(college$Private, college$Enroll, xlab = "Private University", ylab ="Enrolled Students", main = "Enrolled in University")
+
+# Problem 2c-iv
+
+Elite <- rep ("No", nrow(college)) # replicates "No" for the total number of rows in college data frame
+Elite [college$Top10perc > 50] <- "Yes" # if the Top10perc value is > 50 change No to Yes
+Elite <- as.factor (Elite) # create Elite as factor
+college <- data.frame(college, Elite) # create new column for Elite in the college data frame
+
+# Problem 2c-v
+# Use the summary() function to see how many elite universities there are
+summary(Elite) # Number of Yes is the total number of Elite Universities
+
+# Problem 2c-vi
+# Now use the plot() function to produce side-by-side boxplots of Outstate versus Elite. Label
+# the axes and main title appropriately.
+par(mfrow = c(1, 1)) 
+plot(college$Elite, college$Outstate, xlab = "Elite University", ylab ="Out-of-State Tuition", main = "Out-Of-State Tuition in Elite vs Non-Elite University")
+
+# Problem 2c-vii
+par(mfrow = c(2, 2)) 
+hist(college$Outstate, xlab = "Out-of-State Tuition ($)", main = "Histogram of Out-Of-State")
+hist(college$Room.Board, xlab = "Room & Board ($)", main = "Histogram of Room & Board")
+hist(college$Books, xlab = "Books ($)", main = "Histogram of Books")
+hist(college$Personal, xlab = "Personal ($)", main = "Histogram of Personal")
+####################
+# END OF PROBLEM 2 #
+####################
+
+```
+
+## Problem 3
+```{r, echo=TRUE}
+# library
+library(plyr) # for baseball data sets
+
+# Problem 3a
+data ("baseball",package = "plyr") # Load the data frame baseball in the plyr package
+?baseball # get information about the data set and definitions for the variables
+
+# Problem 3b
+# for players before 1954, variable sf should be set to 0
+baseball$sf [baseball$year < 1954] <- 0
+# Hit by pitch (the variable hbp) is often missing { set these missings to 0
+baseball$hbp [is.na(baseball$hbp)] <- 0
+# Exclude all player records with fewer than 50 at bats (the variable ab)
+baseball <- baseball[!(baseball$ab < 50),]
+
+# Problem 3c
+# Compute on base percentage in the variable obp according to the formula
+obp <- rep (0, nrow(baseball))
+obp <- (baseball$h + baseball$bb + baseball$hbp) / (baseball$ab + baseball$bb + baseball$hbp + baseball$sf)
+
+# Problem 3d
+# Sort the data based on the computed obp and print the year, player name, and on base percentage
+# for the top five records based on this value.
+obp <- as.factor(obp)
+baseball <- data.frame(baseball, obp) # create new column for obp in the baseball data 
+baseball <- baseball[order(baseball$obp, decreasing = TRUE),] # sort the data frame based on obp
+# print top five records (the year, player name, and on base percentage)
+baseball[1:5,c(2,1,ncol(baseball))]
+
+####################
+# END OF PROBLEM 3 #
+####################
+
+```
+
+## Problem 4
+```{r, echo=TRUE}
+# Problem 4a
+# library
+library(datasets) # for quakes data sets
+
+# Problem 4a
+# Load the quakes data from the datasets package
+data("quakes", package = "datasets")
+
+# Problem 4b
+# Plot the recorded earthquake magnitude against the earthquake depth using the plot command
+plot(quakes$depth, quakes$mag, xlab = "Depth (km)", ylab = "Magnitude", main = "Magnitude vs Depth", ylim = range(min(quakes$mag)-0.25, max(quakes$mag)+0.25))
+
+# Problem 4c
+# Use aggregate to compute the average earthquake depth for each magnitude level. Store these
+# results in a new data frame named quakeAvgDepth
+
+quakeAvgDepth <- aggregate(quakes,by = list(quakes$mag), FUN = mean)
+quakeAvgDepth
+
+# Problem 4d
+# rename the columns
+colnames(quakeAvgDepth) <- c("mag.level", "ave.lat", "ave.long", "ave.depth", "ave.mag", "ave.stations")
+quakeAvgDepth
+
+# Problem 4e
+# Plot the magnitude vs. the average depth
+plot(quakeAvgDepth$ave.depth, quakeAvgDepth$mag.level, xlab = "Average Depth (km)", ylab = "Magnitude Level", main = "Magnitude vs Average Depth", ylim = range(min(quakeAvgDepth$mag.level)-0.25, max(quakeAvgDepth$mag.level)+0.25))
+
+# Problem 4f
+
+# Yes, the plot shows that the earthquakes at shallow depth create a higher magnitude level earthquakes.
+
+####################
+# END OF PROBLEM 4 #
+####################
+
+```

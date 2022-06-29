@@ -1,0 +1,3 @@
+Liear regression - https://www.tatvic.com/blog/product-revenue-prediction-with-r-part-2/
+
+https://github.com/Sagar9016/Restaurant-Revenue-Prediction/blob/master/Restaurant%20Revenue%20Predicton.R#L18

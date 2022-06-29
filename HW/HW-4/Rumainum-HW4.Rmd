@@ -1,0 +1,292 @@
+---
+title: "Rumainum-HW4"
+author: "Lince Rumainum"
+date: "September 29, 2019"
+output: word_document
+---
+
+## Problem 1
+```{r, echo=TRUE, fig.width=16, fig.height=10}
+# list of libraries for HW4
+library("car")        # for 'symbox' function
+library("EnvStats")   # for "boxcox" function
+library("mlbench")    # for Glass dataset
+library("ggplot2")     # for msleep dataset
+#load all of the packages associated with the tidyverse
+#includes dplyr, tidyr, and magritter
+library("tidyverse")
+library ("VIM") # for aggr function
+library ("mice") # for imputation 
+
+# Problem 1
+# load Glass dataset
+data(Glass, package = 'mlbench')
+attach(Glass)
+# remove duplicated data from glass and exclude Type column
+Glass<-Glass[!duplicated(Glass[,-10]),]
+# column bind the Glass dataset with Type column
+Glass<-cbind(scale(Glass[,-10]),Glass[10])
+
+# Problem 1-i
+# create visualization for the three attributes in Glass data using symbox function
+# for Na (Sodium), Al (Aluminum), and K (Potassium)
+par(mfrow=c(1,3))  # setup the output area to plot the histograms in 1 row of 3 columns
+symbox(Glass$Na, data=Glass, powers=c(3,2,1,0,-0.5,-1,-2))
+symbox(Glass$Al, data=Glass, powers=c(3,2,1,0,-0.5,-1,-2))
+symbox(Glass$K,  data=Glass, powers=c(3,2,1,0,-0.5,-1,-2))
+
+# Problem 1-ii
+summary(Glass) # look at the summary of Glass data
+# find the optimal lamda value for each attribute
+# use boxcox to search it with search range (-3, 3) (only use positive values in the data)
+# 2 Histogram of Non-Transform Data, Transform Data, and Updated Symbox Function with Optimal Lambda
+
+# For Na (Sodium)
+bc_Na <- boxcox(Glass$Na[Glass$Na>0], optimize = TRUE, lambda=c(-3,3))
+#bc_Na$lambda
+par(mfrow=c(1,3)) 
+hist(Glass$Na)
+hist((Glass$Na**bc_Na$lambda-1)/bc_Na$lambda) 
+symbox(Glass$Na, data=Glass, powers=c(2,1,0.3795958,0,-1))
+# For Al (Aluminum)
+bc_Al <- boxcox(Glass$Al[Glass$Al>0], optimize = TRUE, lambda=c(-3,3))
+bc_Al$lambda
+par(mfrow=c(1,3)) 
+hist(Glass$Al)
+hist((Glass$Al**bc_Al$lambda-1)/bc_Al$lambda) 
+symbox(Glass$Al, data=Glass, powers=c(2,1,0.2357033,0,-1))
+# For K (Potassium)
+bc_K <- boxcox(Glass$K[Glass$K>0], optimize = TRUE, lambda=c(-3,3))
+bc_K$lambda
+par(mfrow=c(1,3)) 
+hist(Glass$K)
+hist((Glass$K**bc_K$lambda-1)/bc_K$lambda) 
+symbox(Glass$K, data=Glass, powers=c(2,1,0,-0.03432775,-1))
+par(mfrow=c(1,1)) 
+####################
+# END OF PROBLEM 1 #
+####################
+
+# Problem 2
+# load msleep dataset
+data(msleep, package = 'ggplot2')
+attach(msleep)
+
+# Problem 2-a
+# create complete cases of msleep (df without missing data)
+msleep_complete <- na.omit(msleep)
+# list rows of msleep data that have missing values in msleep
+msleep_incomplete <- msleep[!complete.cases(msleep),]
+
+# create data frame for numeric values in msleep
+msleep_numeric <- msleep %>% select_if(is.numeric)
+# show the first few rows of the numeric data
+head(msleep_numeric)
+# list rows of msleep data that have missing values in msleep_numeric
+#msleep_numeric_incomplete <- msleep_numeric[!complete.cases(msleep_numeric),]
+
+# summarize the percentage missing for each numeric column
+msleep %>% select_if(is.numeric) %>% mutate_all(is.na) %>% summarise_all(mean)
+#resulted in  
+#0% missing in sleep_total     
+#26.5% missing in sleep_rem
+#61.4% missing in sleep_cycle
+#0% missing in awake
+#32.5% missing in brainwt
+#0% missing in bodywt
+
+# get the overall numeric data information that is missing on msleep data frame using VIM's aggr function
+missingInfo_numeric <- aggr(msleep_numeric, cex.axis = 0.75)
+# show missing information for each numeric variables
+md.pattern(msleep_numeric)
+
+# The pattern shows that there are 18 instances where sleep_cycle is missing, two instances where brain weight is missing, eleven instances where brain weight and sleep cycle is missing, eight instances where REM sleep time and sleep cycle are missing, and fourteen instances where REM sleep time, brain weight, and sleep cycle data are missing. 
+
+# Problem 2-b
+# The article by Savage and West (2007) is using the scaling relationships of simple power laws. They are using the ladder of powers by transforming their data into ln-ln space. Since the variance relations and relative error between the attributes that they analyzed are linear, the predicted regression data were done using ordinary least squares regression method. They analyze the relation between the ratio of the sleep time and awake time with the body mass and also with brain mass and the ratio of REM sleep time and the total sleep time with their body mass.
+
+# For this problem, before transforming the data doing the standardization of the data is important so all the data will be in the same scale. In this case, z-score standardization will be used. Since some attributes are heavily skewed, transforming skewness will done by using ladder of powers method.
+# plot histogram before transform to its z-score
+# plot each histogram to see how the distribution is
+par(mfrow=c(2,3))
+hist(msleep_numeric$sleep_total) 
+hist(msleep_numeric$sleep_rem) 
+hist(msleep_numeric$sleep_cycle) 
+hist(msleep_numeric$awake) 
+hist(msleep_numeric$brainwt) 
+hist(msleep_numeric$bodywt) 
+par(mfrow=c(1,1)) 
+
+# calculate z-scores for each attributes
+z_st <- scale(msleep_numeric$sleep_total, center = T, scale = T)  # sleep_total
+z_sr <- scale(msleep_numeric$sleep_rem, center = T, scale = T)    # sleep_rem
+z_sc <- scale(msleep_numeric$sleep_cycle, center = T, scale = T)  # sleep_cycle
+z_aw <- scale(msleep_numeric$awake, center = T, scale = T)        # awake
+z_br <- scale(msleep_numeric$brainwt, center = T, scale = T)      # brain weight
+z_bo <- scale(msleep_numeric$bodywt, center = T, scale = T)       # body weight
+
+# plot each histogram to see how the distribution is
+par(mfrow=c(2,3))
+hist(z_st) 
+hist(z_sr)
+hist(z_sc)
+hist(z_aw) 
+hist(z_br)
+hist(z_bo)
+par(mfrow=c(1,1)) 
+# create data frame for the z-scores 
+z_df <- data.frame(z_st, z_sr, z_sc, z_aw, z_br, z_bo)
+
+# using box-cox to get the best normality of each attributes
+# for total sleep time
+bc_st <- boxcox(z_df$z_st[z_df$z_st>0], optimize = TRUE, lambda=c(-3,3))
+logz_st <- (z_df$z_st**bc_st$lambda-1)/bc_st$lambda
+# for REM sleep time
+bc_sr <- boxcox(z_df$z_sr[z_df$z_sr>0], optimize = TRUE, lambda=c(-3,3))
+logz_sr <- (z_df$z_sr**bc_sr$lambda-1)/bc_sr$lambda
+# for total sleep cycle
+bc_sc <- boxcox(z_df$z_sc[z_df$z_sc>0], optimize = TRUE, lambda=c(-3,3))
+logz_sc <- (z_df$z_sc**bc_sc$lambda-1)/bc_sc$lambda
+# for total awake time
+bc_aw <- boxcox(z_df$z_aw[z_df$z_aw>0], optimize = TRUE, lambda=c(-3,3))
+logz_aw <- (z_df$z_aw**bc_aw$lambda-1)/bc_aw$lambda
+# for brain weight
+bc_br <- boxcox(z_df$z_br[z_df$z_br>0], optimize = TRUE, lambda=c(-3,3))
+logz_br <- (z_df$z_br**bc_br$lambda-1)/bc_br$lambda
+# for body weight
+bc_bo <- boxcox(z_df$z_bo[z_df$z_bo>0], optimize = TRUE, lambda=c(-3,3))
+logz_bo <- (z_df$z_bo**bc_bo$lambda-1)/bc_bo$lambda
+# create data frame for the log of the z-scores 
+zlog_df <- data.frame(logz_st,logz_sr,logz_sc,logz_aw,logz_br,logz_bo)
+
+# plot the normalized z-score from boxcox's lambda result
+par(mfrow=c(2,3))
+hist(logz_st) 
+hist(logz_sr) 
+hist(logz_sc) 
+hist(logz_aw) 
+hist(logz_br) 
+hist(logz_bo) 
+par(mfrow=c(1,1)) 
+
+#group by msleep's order column
+#count for each type of msleep's order, the mean avalue of its brain weight, body weight, and total sleep
+msleep %>% 
+  group_by(order) %>%
+  summarize(n = n(), # count how many for each order
+            brainwt = mean(brainwt, na.rm = TRUE), # mean value of brainwt
+            bodywt = mean(bodywt, na.rm = TRUE), # mean value of bodywt
+            sleep_total = mean(sleep_total)) %>% 
+  arrange(desc(brainwt)) 
+
+# select vore and order column, columns that start with "sleep, and end with "wt"
+relations_df <- msleep %>% 
+  select(vore, order, starts_with("sleep"), ends_with("wt"))
+# the new relations_df data frame without NA values
+relations_df_complete <- na.omit(relations_df)
+
+# seleting by the body weight group (in kg), count how many of mammals in that weight group
+# and calcuate the mean of their brain weight (in grams), sleep total (in hour), sleep cycle (in hour), and REM sleep time (in hour)
+relations_df %>% 
+  group_by(bodywt_group = cut(bodywt, breaks = c(0,1,5,10,50,100,1000,Inf), right = F)) %>% 
+  summarize(n = n(), # count how many for each order
+             brainwt = mean(brainwt, na.rm = TRUE)*1000, # mean value of brainwt
+            sleep_total = mean(sleep_total), # mean value of total sleep
+            sleep_cycle = mean(sleep_cycle, na.rm = TRUE), # mean value of brainwt
+            sleep_rem = mean(sleep_rem, na.rm = TRUE)) # mean value of bodywt 
+
+
+# Problem 2c
+# put all columns data into a variable to use in linear regression model for this problem
+st <- msleep_numeric$sleep_total
+sr <- msleep_numeric$sleep_rem
+sc <- msleep_numeric$sleep_cycle
+aw <- msleep_numeric$awake
+br <- msleep_numeric$brainwt
+bd <- msleep_numeric$bodywt
+
+# complete cases of the numeric data
+msleep_numeric_complete <- na.omit(msleep_numeric)
+set.seed(1000)
+# create random noise to implement on the linear formula so data won't over fit
+n = 83
+randNoise <- rnorm(n)
+
+# Problem 2-c (i)
+# Use mice to conduct multiple imputation for the missing numeric fields.
+# check the percent missing per variable
+myfun<-function(x) mean(is.na(x))
+apply(msleep_numeric,2,myfun)
+
+#STEP 1 of MICE
+# norm.nob is Linear regression ignoring model error
+# it creates 8 of multiple imputations and impute missing values for 100 iterations
+imp_msleep <- mice(msleep_numeric, m = 8, method = "norm.nob", maxit = 100)
+
+# STEP 2 of MICE
+#take a look at how the means and variances of the imputed values are (hopefully) converging 
+imp_sleep_mean <- imp_msleep$chainMean
+imp_sleep_var <- imp_msleep$chainVar
+
+#plot those means and variances
+plot(imp_msleep)
+
+# Problem 2-c (ii) 
+# Build and evaluate a linear regression model based on the multiply imputed data.
+# STEP 3 of mice command
+# perform the third step of MI using the "with" command
+# to perform a standard analysis (in this case, a linear regression) on each data set 
+fit_msleep <- with(imp_msleep, lm(bd~st+sr+sc+aw+br+randNoise) )
+
+# STEP 4 of mice command
+# recombination, using the "pool" command 
+est_msleep <- pool(fit_msleep)
+
+# Problem 2-c (iii) Compare the regression coefficients and p-values with the same linear regression model on complete cases.
+
+# Compare the regression 
+#coefficient estimates based on full data
+# regression coefficients and p-values with the same linear regression model on complete cases.
+#summary(fullfit <- lm(data = msleep_numeric_complete, br~st+sr+sc+aw+bd))
+summary(fullfit <- lm(data = msleep_numeric_complete, bd~st+sr+sc+aw+br+randNoise))
+
+#coefficient estimates based on complete cases (no imputation)
+summary(missfit <- lm(data = msleep_numeric, bd~st+sr+sc+aw+br+randNoise))
+
+#coefficient estimates based on MICE (recombined estimates)
+summary(est_msleep)
+
+
+# Problem 2-c (iv) 
+# Repeat the multiple imputation analysis and linear modeling with mice using different imputation models. Compare results.
+# Use mice to conduct multiple imputation for the missing numeric fields.
+# STEP 1 of MICE
+# norm.predict is Linear regression, predicted values
+# it creates 8 of multiple imputations and impute missing values for 50 iterations
+imp_pr_sleep <- mice(msleep_numeric, m = 8, method = "norm.predict", maxit = 30)
+
+# STEP 2 of MICE
+# take a look at how the means and variances of the imputed values are converging 
+imp_pr_mean <- imp_pr_sleep$chainMean
+imp_pr_var <- imp_pr_sleep$chainVar
+
+#plot those means and variances
+plot(imp_pr_sleep)
+
+# STEP 3 of mice command
+# perform the third step of MI using the "with" command
+# to perform a standard analysis (in this case, a linear regression) on each data set 
+fit_pr_msleep <- with(imp_pr_sleep, lm(bd~st+sr+sc+aw+br+randNoise) )
+
+# STEP 4 of mice command
+# recombination, using the "pool" command 
+est_pr_msleep <- pool(fit_pr_msleep)
+
+# Compare the regression 
+#coefficient estimates based on MICE (recombined estimates)
+summary(est_pr_msleep)
+
+####################
+# END OF PROBLEM 2 #
+####################
+```

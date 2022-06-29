@@ -1,0 +1,802 @@
+---
+title: "Rumainum-HW5"
+author: "Lince Rumainum"
+date: "October 8, 2019"
+output: word_document
+---
+
+## Intelligence Data Analysis - HW 5
+
+```{r, echo=TRUE, fig.width=16, fig.height=10}
+# list of libraries for HW5
+#load all of the packages associated with the tidyverse
+#includes dplyr, tidyr, and magritter
+library(tidyverse)
+#library(car) # for 'symbox' function
+#library(EnvStats) # for "boxcox" function
+library(ggplot2) # plots
+library (VIM) # for aggr function
+library (mice) # for imputation 
+##pastecs has a function called stat.desc that provides one quick way at looking at some summary statistics
+library(pastecs)
+library (forcats) # for fct_lump function
+library(sjmisc) # mmergeimputation
+# this is used for PCA plot but loaded later
+# to avoid conflict with dplyr packege
+#library(ggbiplot) # PCA plot
+################################################################################################################################################
+# Problem 1 
+################################################################################################################################################
+# Probelm 1a and 1b
+########################################################################
+# Training Data
+########################################################################
+# load training data
+path <- "C:/Users/Lince/Documents/Fall 2019/DSA5103-IntelligentDataAnalysis/HW/HW-5/"
+trainFile <- paste(path, "Train.csv", sep = "")
+dfTrain <- read_csv(trainFile)
+
+# make a copy of dfTrain
+dfcTrain <- dfTrain
+# get row length
+data_length <- nrow(dfcTrain) 
+
+# creating function for the mean of the missing values
+myMeanNAsFun <- function(x) mean(is.na(x))
+
+# see the percentage of missing data for each variable
+apply(dfcTrain, 2, myMeanNAsFun)
+
+# see column info
+ncol(dfcTrain)
+colnames(dfcTrain)
+
+# create level for the channel column
+channels <- fct_lump(dfTrain$channelGrouping, n = 7)
+summary(channels) # see result summary
+
+# create IDs for channel according to summary
+dfcTrain$channelID <- NA
+for (i in 1:data_length){
+  if(is.na(channels[i])){
+    dfcTrain$channelID[i] <- NA
+  }
+  else if(channels[i] == "Organic Search"){
+    dfcTrain$channelID[i] <- 1
+  }
+  else if(channels[i] == "Social"){
+    dfcTrain$channelID[i] <- 2
+  }
+  else if(channels[i] == "Referral"){
+    dfcTrain$channelID[i] <- 3
+  }
+  else if(channels[i] == "Direct"){
+    dfcTrain$channelID[i] <- 4
+  }
+  else if(channels[i] == "Paid Search"){
+    dfcTrain$channelID[i] <- 5
+  }
+  else if(channels[i] == "Affiliates"){
+    dfcTrain$channelID[i] <- 6
+  }
+  else if(channels[i] == "Display"){
+    dfcTrain$channelID[i] <- 7
+  }
+  else if(channels[i] == "(Other)"){
+    dfcTrain$channelID[i] <- 8
+  }
+}
+
+# create IDs for the device column
+devices <- fct_lump(dfTrain$deviceCategory, n = 3)
+summary(devices) # see result summary
+
+# create ID for deveice according to summary
+dfcTrain$deviceID <- NA
+for (i in 1:data_length){
+  if(is.na(devices[i])){
+    dfcTrain$deviceID[i] <- NA
+  }
+  else if(devices[i] == "desktop"){
+    dfcTrain$deviceID[i] <- 1
+  }
+  else if(devices[i] == "mobile"){
+    dfcTrain$deviceID[i] <- 2
+  }
+  else if(devices[i] == "tablet"){
+    dfcTrain$deviceID[i] <- 3
+  }
+}
+
+# create level for the source column
+sources <- fct_lump(dfTrain$source, n = 9)
+summary(sources) # see result summary
+
+# create ID for the top 10 sources according to summary
+dfcTrain$sourceID <- NA
+for (i in 1:data_length){
+  if(is.na(sources[i])){
+    dfcTrain$sourceID[i] <- NA
+  }
+  else if(sources[i] == "google"){
+    dfcTrain$sourceID[i] <- 1
+  }
+  else if(sources[i] == "youtube.com"){
+    dfcTrain$sourceID[i] <- 2
+  }
+  else if(sources[i] == "(direct)"){
+    dfcTrain$sourceID[i] <- 3
+  }
+  else if(sources[i] == "mall.googleplex.com"){
+    dfcTrain$sourceID[i] <- 4
+  }
+  else if(sources[i] == "analytics.google.com"){
+    dfcTrain$sourceID[i] <- 5
+  }
+  else if(sources[i] == "Partners"){
+    dfcTrain$sourceID[i] <- 6
+  }
+  else if(sources[i] == "dfa"){
+    dfcTrain$sourceID[i] <- 7
+  }
+  else if(sources[i] == "google.com"){
+    dfcTrain$sourceID[i] <- 8
+  }
+  else if(sources[i] == "sites.google.com"){
+    dfcTrain$sourceID[i] <- 9
+  }
+  else if(sources[i] == "Other"){
+    dfcTrain$sourceID[i] <- 10
+  }
+}
+
+# create level for the medium column
+mediums <- fct_lump(dfTrain$medium, n = 5)
+summary(mediums)# see result summary
+
+# create ID for medium ID according to summary
+dfcTrain$mediumID <- NA
+for (i in 1:data_length){
+  if(is.na(mediums[i])){
+    dfcTrain$mediumID[i] <- NA
+  }
+  else if(mediums[i] == "organic"){
+    dfcTrain$mediumID[i] <- 1
+  }
+  else if(mediums[i] == "referral"){
+    dfcTrain$mediumID[i] <- 2
+  }
+  else if(mediums[i] == "cpc"){
+    dfcTrain$mediumID[i] <- 3
+  }
+  else if(mediums[i] == "affiliate"){
+    dfcTrain$mediumID[i] <- 4
+  }
+  else if(mediums[i] == "cpm"){
+    dfcTrain$mediumID[i] <- 5
+  }
+}
+
+# create level for country column
+countries <- fct_lump(dfTrain$country, n = 9)
+summary(countries) # see result summary
+
+# create ID for the top 10 countries according to summary
+dfcTrain$countryID <- NA
+for (i in 1:data_length){
+  if(is.na(countries[i])){
+    dfcTrain$countryID[i] <- NA
+  }
+  else if(countries[i] == "United States"){
+    dfcTrain$countryID[i] <- 1
+  }
+  else if(countries[i] == "India"){
+    dfcTrain$countryID[i] <- 2
+  }
+  else if(countries[i] == "United Kingdom"){
+    dfcTrain$countryID[i] <- 3
+  }
+  else if(countries[i] == "Canada"){
+    dfcTrain$countryID[i] <- 4
+  }
+  else if(countries[i] == "Vietnam"){
+    dfcTrain$countryID[i] <- 5
+  }
+  else if(countries[i] == "Thailand"){
+    dfcTrain$countryID[i] <- 6
+  }
+  else if(countries[i] == "Turkey"){
+    dfcTrain$countryID[i] <- 7
+  }
+  else if(countries[i] == "Germany"){
+    dfcTrain$countryID[i] <- 8
+  }
+  else if(countries[i] == "Brazil"){
+    dfcTrain$countryID[i] <- 9
+  }
+  else if(countries[i] == "Other"){
+    dfcTrain$countryID[i] <- 10
+  }
+}
+
+# create new feture usedAds based on all the column start with ad
+# to see if data is used
+# if data is there then 1, else otherwise
+dfcTrain$usedAds <- NA
+for (i in 1:data_length){
+  if(!is.na(dfcTrain$adContent[i]) || !is.na(dfcTrain$adwordsClickInfo.adNetworkType[i]) ||
+     !is.na(dfcTrain$adwordsClickInfo.gclId[i]) || !is.na(dfcTrain$adwordsClickInfo.isVideoAd[i]) ||
+     !is.na(dfcTrain$adwordsClickInfo.page[i]) || !is.na(dfcTrain$adwordsClickInfo.slot[i])) {
+    dfcTrain$usedAds[i] <- 1
+  }
+  else {
+    dfcTrain$usedAds[i] <- 0
+  }
+}
+
+# do imputations on all the NAs values
+# modify them to 0s for bouces and newVisits columns
+for (i in 1:data_length){
+  if(is.na(dfcTrain$bounces[i])){
+    dfcTrain$bounces[i] <- 0
+  }
+  
+  if(is.na(dfcTrain$newVisits[i])){
+    dfcTrain$newVisits[i] <- 0
+  }
+}
+
+# check missing vlues on new features
+apply(dfcTrain[,36:41],2,myMeanNAsFun)
+
+dfcTrainAll <- dfcTrain # all the data with new features to a new df
+
+# subset the training data
+dfcTrain <- dfcTrainAll [ , c(1,2,3,6,7,14,21,32,33,34,36,37,38,39,40,41,35)]
+# get all numeric columns only
+dfTrainNum <- dfcTrain %>% select_if(is.numeric)
+colnames(dfTrainNum) # see all the remaining column
+# exclude sessionId
+dfTrainNum <- dfTrainNum[,-1]
+
+# create complete cases df (df without missing data)
+dfcTrain_complete <- na.omit(dfTrainNum)
+# total percentage of complete cases
+nrow(dfcTrain_complete) / nrow(dfcTrain) * 100 
+
+# create incomplete cases df
+dfcTrain_incomplete <- dfTrainNum[!complete.cases(dfTrainNum),]
+apply(dfcTrain_incomplete,2,myMeanNAsFun) # see the missingness within the df
+# total percentage of incomplete cases
+nrow(dfcTrain_incomplete) / nrow(dfcTrain) * 100
+
+# use VIM package to see the missing data on the numeric data frame
+md.pattern(dfTrainNum)
+aggr_plot <- aggr(dfTrainNum, col=c('navyblue','red'), numbers = TRUE, sortVars = TRUE, 
+                  labels=names(data), cex.axis=.6, gap = 3, ylab=c("Histogram of missing data","Pattern"))
+
+# PCA
+# compute pca using prcomp
+dfcTrain_pca <- prcomp(dfcTrain_complete[,-1],scale = T)
+summary(dfcTrain_pca) # summary of PCA
+
+library(ggbiplot)
+# biplot for PCA 1 and PCA 2
+ggbiplot(dfcTrain_pca, obs.scale = 1, var.scale = 1, varname.size = 6, varname.adjust = 1.1, varname.abbrev = FALSE,
+         labels.size = 10, alpha = 0.1, choices = (c(1,2)), circle = TRUE, ellipse = TRUE) +
+  xlim(-3,5) +
+  ylim(-5,5)
+# to resolve error for dplyr
+detach(package:ggbiplot)
+detach(package:plyr)
+
+# http://www.programmingr.com/how-to-calculate-mode-in-r/
+getmode <- function(x) {
+  keys <- na.omit(unique(x))
+  keys[which.max(tabulate(match(x, keys)))]
+}
+
+# group all data by customerID
+# taken the mean of the first three numeric columns
+# taken the mode of the logical and factor columns
+dfTr_custId <- dfTrainNum %>% 
+  group_by(custId) %>%  
+  summarize(visitNumber = mean(visitNumber), 
+            timeSinceLastVisit = mean(timeSinceLastVisit),
+            pageviews = mean(pageviews), 
+            bounces = getmode(bounces), 
+            newVisits = getmode(newVisits),
+            channelID = getmode(channelID),
+            deviceID = getmode(deviceID),
+            sourceID = getmode(sourceID),
+            mediumID = getmode(mediumID),
+            countryID = getmode(countryID),
+            usedAds = getmode(usedAds),
+            revenue = sum(revenue))  %>% 
+    arrange(custId)
+ 
+# check missingness within the df
+apply(dfTr_custId, 2, myMeanNAsFun)
+# analyze each attribute behavior against the revenue and if ads was used 
+dfTr_custId$usedAds = as.logical(dfTr_custId$usedAds) # change usedAds column to logical data type
+# plot revenue vs visit number
+ggplot(data = dfTr_custId) + 
+  geom_point(mapping = aes(x = visitNumber, y = revenue, color = usedAds)) +
+  ylim(0,15000)
+summary(dfTr_custId$visitNumber)
+nrow(subset(dfTr_custId, visitNumber < 50))/nrow(dfTr_custId) * 100 # 99.98095 remains
+nrow(subset(dfTr_custId, visitNumber < 25))/nrow(dfTr_custId) * 100 # 99.95132 remains
+# plot revenue vs time Since Last Visit
+ggplot(data = dfTr_custId) + 
+  geom_point(mapping = aes(x = timeSinceLastVisit, y = revenue, color = usedAds)) +
+  ylim(0,6000)
+nrow(subset(dfTr_custId, timeSinceLastVisit < 10000000))/nrow(dfTr_custId) * 100 # 99.97037 remains
+# plot revenue vs page views
+ggplot(data = dfTr_custId) + 
+  geom_point(mapping = aes(x = pageviews, y = revenue, color = usedAds)) +
+  ylim(0,6000)
+nrow(subset(dfTr_custId, pageviews < 150))/nrow(dfTr_custId) * 100 # 99.97884 remains
+nrow(subset(dfTr_custId, pageviews < 100))/nrow(dfTr_custId) * 100 # 99.94921 remains
+# plot revenue vs bounces
+ggplot(data = dfTr_custId) + 
+  geom_point(mapping = aes(x = bounces, y = revenue, color = usedAds)) +
+  ylim(0,6000)
+# plot revenue vs new visits
+ggplot(data = dfTr_custId) + 
+  geom_point(mapping = aes(x = newVisits, y = revenue, color = usedAds)) +
+  ylim(0,6000)
+# plot revenue vs each ID features
+ggplot(data = dfTr_custId) + 
+  geom_point(mapping = aes(x = deviceID, y = revenue, color = usedAds)) +
+  ylim(0,6000)
+ggplot(data = dfTr_custId) + 
+  geom_point(mapping = aes(x = sourceID, y = revenue, color = usedAds)) +
+  ylim(0,6000)
+ggplot(data = dfTr_custId) + 
+  geom_point(mapping = aes(x = countryID, y = revenue, color = usedAds)) +
+  ylim(0,6000)
+ggplot(data = dfTr_custId) + 
+  geom_point(mapping = aes(x = channelID, y = revenue, color = usedAds)) +
+  ylim(0,6000)
+# channelID 5 - Paid Search is the only ID that used Ads
+ggplot(data = dfTr_custId) + 
+  geom_point(mapping = aes(x = mediumID, y = revenue, color = usedAds)) +
+  ylim(0,6000)
+# mediumID 3 - cpc is the only ID that used Ads
+
+# analyze the behavior of visitNumber, revenue, and timeSinceLastVisit against revenue for different countries
+#1 "United States" #2 "India" #3 "United Kingdom" #4 "Canada" #5 "Vietnam"
+#6 "Thailand" #7 "Turkey" #8 "Turkey" #9 "Germany" #10 "Other"
+for (i in 1:10){
+  dfTrain_country = subset(dfTr_custId, countryID == i)
+  ggplot(data = dfTrain_country) + 
+    geom_point(mapping = aes(x = visitNumber, y = revenue)) +
+    ylim(0,15000)
+}
+for (i in 1:10){
+  dfTrain_country = subset(dfTr_custId, countryID == i)
+  ggplot(data = dfTrain_country) + 
+    geom_point(mapping = aes(x = pageviews, y = revenue)) +
+    ylim(0,15000)
+}
+
+for (i in 1:10){
+  dfTrain_country = subset(dfTr_custId, countryID == i)
+  ggplot(data = dfTrain_country) + 
+    geom_point(mapping = aes(x = timeSinceLastVisit, y = revenue)) +
+    ylim(0,15000)
+}
+
+# summary of the numeric attributes
+summary(dfTr_custId$visitNumber)
+summary(dfTr_custId$pageviews)
+summary(dfTr_custId$timeSinceLastVisit)
+
+# create updated training data frame
+#newTr_update1 <- subset(dfTr_cUStId, visitNumber < 50 & pageviews < 150 & revenue < 6000)
+newTr_update1 <- subset(dfTr_custId, visitNumber < 25 & pageviews < 100 & revenue < 6000)
+# log was taken on the first attributes of the df
+newTr_update2 <- data.frame(log_visitnumber = log(newTr_update1$visitNumber+1), 
+                            log_timesincelastvisit=log(newTr_update1$timeSinceLastVisit+1), 
+                            log_pageviews=log(newTr_update1$pageviews+1),
+                            channelID=newTr_update1$channelID, deviceID=newTr_update1$deviceID, 
+                            sourceID=newTr_update1$sourceID, mediumID=newTr_update1$mediumID,
+                            countryID=newTr_update1$countryID, 
+                            bounces=newTr_update1$bounces,newVisits=newTr_update1$newVisits,
+                            usedAds=newTr_update1$usedAds, revenue=newTr_update1$revenue)
+
+# analyze data behavior after taking the log function of visitnumber, timesincelastvisit, pageviews
+ggplot(data = newTr_update2) + 
+  geom_point(mapping = aes(x = log_visitnumber, y = revenue, color = usedAds)) +
+  ylim(0,6000)
+ggplot(data = newTr_update2) + 
+  geom_point(mapping = aes(x = log_timesincelastvisit, y = revenue, color = usedAds)) +
+  ylim(0,6000)
+ggplot(data = newTr_update2) + 
+  geom_point(mapping = aes(x = log_pageviews, y = revenue, color = usedAds)) +
+  ylim(0,6000)
+
+# see missingness in new updated data
+apply(newTr_update2,2,myMeanNAsFun)
+
+########## Imputation using MICE
+# norm.predict is Linear regression, predicted values
+# it creates 10 of multiple imputations and impute missing values for 5 iterations
+imp_tn <- mice(newTr_update2, m = 10, method = "norm.predict", maxit = 5)
+
+#plot those means and variances
+#take a look at how the means and variances of the imputed values are (hopefully) converging 
+plot(imp_tn) # it is converging
+
+# take original data into imputed df
+imputed_dfTrain <- as.data.frame(imp_tn$data)
+
+# append imputed variables to imputed df
+imputed_dfTrain <- merge_imputations(imputed_dfTrain, imp_tn, imputed_dfTrain)
+# modify df accordingly
+imputed_dfTrain<-imputed_dfTrain[,-c(6,7,8)]
+colnames(imputed_dfTrain)[10] <- "sourceID"
+colnames(imputed_dfTrain)[11] <- "mediumID"
+colnames(imputed_dfTrain)[12] <- "countryID"
+# see if there is still any NAs
+apply(imputed_dfTrain,2,myMeanNAsFun)
+
+# view column names of newTr_update2
+colnames(newTr_update2)
+
+
+# Problem 1c - at the end, using the linear model 1 (lm1) 
+# using data with no imputations
+# create a linear model with the df's numeric attributes
+lm1 = lm(log(revenue+1) ~ log_visitnumber + log_timesincelastvisit + log_pageviews +
+           channelID + deviceID + sourceID + mediumID + countryID + 
+           bounces + newVisits, data = newTr_update2) 
+
+# analysis the behavior of the linear model 1 
+summary(lm1)
+par(mfrow=c(2,2)) 
+plot(lm1)
+par(mfrow=c(1,1)) 
+
+# the same linear model 1 but without sourceID, mediumID, channelID, and deviceID
+lm_1b = lm(log(revenue+1) ~ log_visitnumber + log_timesincelastvisit + log_pageviews +
+            countryID + bounces + newVisits, data = newTr_update2) 
+
+# analysis the behavior of the linear model - no sourceID
+summary(lm_1b)
+par(mfrow=c(2,2)) 
+plot(lm_1b)
+par(mfrow=c(1,1)) 
+
+# using data with imputations using mice norm.predict method
+# create a linear model with the df's numeric attributes
+lm2 = lm(log(revenue+1) ~ log_visitnumber + log_timesincelastvisit + log_pageviews +
+           channelID + deviceID + sourceID + mediumID + countryID + 
+           bounces + newVisits, data = imputed_dfTrain) 
+# analysis the behavior of the linear model 2
+summary(lm2)
+par(mfrow=c(2,2)) 
+plot(lm2)
+par(mfrow=c(1,1)) 
+
+# the same linear model 2 but without sourceID
+lm_2b = lm(log(revenue+1) ~ log_visitnumber + log_timesincelastvisit + log_pageviews +
+             channelID + deviceID + mediumID + countryID + 
+             bounces + newVisits, data = imputed_dfTrain) 
+# analysis the behavior of the linear model
+summary(lm_2b)
+par(mfrow=c(2,2)) 
+plot(lm_2b)
+par(mfrow=c(1,1)) 
+
+################################################################################################################################################
+# TEST DATA
+################################################################################################################################################
+# load test data
+testFile <- paste(path, "Test.csv", sep = "")
+dfTest <- read_csv(testFile)
+
+# make a copy of dfTest
+df_cTest <- dfTest
+# get row length
+test_length <- nrow(df_cTest)
+# create an empty revenue column
+df_cTest$revenue <- NA
+
+# view number of column and its names
+ncol(df_cTest)
+colnames(df_cTest)
+
+# use the same level of the channel column from train data
+# create channel ID
+df_cTest$channelID <- NA
+for (i in 1:test_length){
+  if(is.na(df_cTest$channelGrouping[i])){
+    df_cTest$channelID[i] <- NA
+  }
+  else if(df_cTest$channelGrouping[i] == "Organic Search"){
+    df_cTest$channelID[i] <- 1
+  }
+  else if(df_cTest$channelGrouping[i] == "Social"){
+    df_cTest$channelID[i] <- 2
+  }
+  else if(df_cTest$channelGrouping[i] == "Referral"){
+    df_cTest$channelID[i] <- 3
+  }
+  else if(df_cTest$channelGrouping[i] == "Direct"){
+    df_cTest$channelID[i] <- 4
+  }
+  else if(df_cTest$channelGrouping[i] == "Paid Search"){
+    df_cTest$channelID[i] <- 5
+  }
+  else if(df_cTest$channelGrouping[i] == "Affiliates"){
+    df_cTest$channelID[i] <- 6
+  }
+  else if(df_cTest$channelGrouping[i] == "Display"){
+    df_cTest$channelID[i] <- 7
+  }
+  else if(df_cTest$channelGrouping[i] == "(Other)"){
+    df_cTest$channelID[i] <- 8
+  }
+}
+
+# use the same level of the device column from train data
+# create device ID 
+df_cTest$deviceID <- NA
+for (i in 1:test_length){
+  if(is.na(df_cTest$deviceCategory[i])){
+    df_cTest$deviceID[i] <- NA
+  }
+  else if(df_cTest$deviceCategory[i] == "desktop"){
+    df_cTest$deviceID[i] <- 1
+  }
+  else if(df_cTest$deviceCategory[i] == "mobile"){
+    df_cTest$deviceID[i] <- 2
+  }
+  else if(df_cTest$deviceCategory[i] == "tablet"){
+    df_cTest$deviceID[i] <- 3
+  }
+}
+
+# use the same level of the source column from train data
+# create ID for the top 10 sources
+df_cTest$sourceID <- NA
+
+for (i in 1:test_length){
+  if(is.na(df_cTest$source[i])){
+    df_cTest$sourceID[i] <- NA
+  }
+  else if(df_cTest$source[i] == "google"){
+    df_cTest$sourceID[i] <- 1
+  }
+  else if(df_cTest$source[i] == "youtube.com"){
+    df_cTest$sourceID[i] <- 2
+  }
+  else if(df_cTest$source[i] == "(direct)"){
+    df_cTest$sourceID[i] <- 3
+  }
+  else if(df_cTest$source[i] == "mall.googleplex.com"){
+    df_cTest$sourceID[i] <- 4
+  }
+  else if(df_cTest$source[i] == "analytics.google.com"){
+    df_cTest$sourceID[i] <- 5
+  }
+  else if(df_cTest$source[i] == "Partners"){
+    df_cTest$sourceID[i] <- 6
+  }
+  else if(df_cTest$source[i] == "dfa"){
+    df_cTest$sourceID[i] <- 7
+  }
+  else if(df_cTest$source[i] == "google.com"){
+    df_cTest$sourceID[i] <- 8
+  }
+  else if(df_cTest$source[i] == "sites.google.com"){
+    df_cTest$sourceID[i] <- 9
+  }
+  else if(df_cTest$source[i] == "Other"){
+    df_cTest$sourceID[i] <- 10
+  }
+}
+
+# create the same level of the medium column from the train data
+df_cTest$mediumID <- NA
+for (i in 1:test_length){
+  if(is.na(df_cTest$medium[i])){
+    df_cTest$mediumID[i] <- NA
+  }
+  else if(df_cTest$medium[i] == "organic"){
+    df_cTest$mediumID[i] <- 1
+  }
+  else if(df_cTest$medium[i] == "referral"){
+    df_cTest$mediumID[i] <- 2
+  }
+  else if(df_cTest$medium[i] == "cpc"){
+    df_cTest$mediumID[i] <- 3
+  }
+  else if(df_cTest$medium[i] == "affiliate"){
+    df_cTest$mediumID[i] <- 4
+  }
+  else if(df_cTest$medium[i] == "cpm"){
+    df_cTest$mediumID[i] <- 5
+  }
+}
+
+# create the same level of the country column from the train data
+# create ID for the top 10 countries
+df_cTest$countryID <- NA
+for (i in 1:test_length){
+  if(is.na(df_cTest$country[i])){
+    df_cTest$countryID[i] <- NA
+  }
+  else if(df_cTest$country[i] == "United States"){
+    df_cTest$countryID[i] <- 1
+  }
+  else if(df_cTest$country[i] == "India"){
+    df_cTest$countryID[i] <- 2
+  }
+  else if(df_cTest$country[i] == "United Kingdom"){
+    df_cTest$countryID[i] <- 3
+  }
+  else if(df_cTest$country[i] == "Canada"){
+    df_cTest$countryID[i] <- 4
+  }
+  else if(df_cTest$country[i] == "Vietnam"){
+    df_cTest$countryID[i] <- 5
+  }
+  else if(df_cTest$country[i] == "Thailand"){
+    df_cTest$countryID[i] <- 6
+  }
+  else if(df_cTest$country[i] == "Turkey"){
+    df_cTest$countryID[i] <- 7
+  }
+  else if(df_cTest$country[i] == "Germany"){
+    df_cTest$countryID[i] <- 8
+  }
+  else if(df_cTest$country[i] == "Brazil"){
+    df_cTest$countryID[i] <- 9
+  }
+  else if(df_cTest$country[i] == "Other"){
+    df_cTest$countryID[i] <- 10
+  }
+}
+
+# see if Ads was used in the data
+df_cTest$usedAds <- NA
+for (i in 1:test_length){
+  # see if any ads was used
+  if(!is.na(dfTest$adContent[i]) || !is.na(dfTest$adwordsClickInfo.adNetworkType[i]) ||
+     !is.na(dfTest$adwordsClickInfo.gclId[i]) || !is.na(dfTest$adwordsClickInfo.isVideoAd[i]) ||
+     !is.na(dfTest$adwordsClickInfo.page[i]) || !is.na(dfTest$adwordsClickInfo.slot[i])) {
+    df_cTest$usedAds[i] <- 1
+  }
+  else {
+    df_cTest$usedAds[i] <- 0
+  }
+}
+
+# do imputations on all the NAs values
+# modify them to 0s for bouces and newVisits columns
+for (i in 1:test_length){
+  if(is.na(df_cTest$bounces[i])){
+    df_cTest$bounces[i] <- 0
+  }
+  
+  if(is.na(df_cTest$newVisits[i])){
+    df_cTest$newVisits[i] <- 0
+  }
+}
+
+# check columns info
+ncol(df_cTest)
+colnames(df_cTest)
+
+# check missing values for the new features
+apply(df_cTest[,36:41],2,myMeanNAsFun)
+
+dfcTestAll <- df_cTest # df for all test data with new features
+# subset the test data
+df_cTest <- dfcTestAll [ , c(1,2,3,6,7,14,21,32,33,34,36,37,38,39,40,41,35)]
+# get all numeric columns only
+dfTestNum <- df_cTest %>% select_if(is.numeric)
+colnames(dfTestNum)
+# exclude sessionId
+dfTestNum <- dfTestNum[,-1]
+
+# create complete cases (df without missing data)
+dfcTest_complete <- na.omit(dfTestNum)
+
+# list rows of msleep data that have missing values
+dfcTest_incomplete <- dfTestNum[!complete.cases(dfTestNum),]
+apply(dfcTest_incomplete,2,myMeanNAsFun)
+
+
+# use VIM package to see the missing data on the numeric data frame
+md.pattern(dfTestNum)
+aggr_plot <- aggr(dfTestNum, col=c('navyblue','red'), numbers = TRUE, sortVars = TRUE, 
+                  labels=names(data), cex.axis=.6, gap = 3, ylab=c("Histogram of missing data","Pattern"))
+
+# group all data by customerID
+# taken the mean of the first three numeric columns
+# taken the mode of the logical and factor columns
+dfTest_custId <- dfTestNum %>% 
+  group_by(custId) %>%  
+  summarize(visitNumber = mean(visitNumber), 
+            timeSinceLastVisit = mean(timeSinceLastVisit),
+            pageviews = mean(pageviews), 
+            bounces = getmode(bounces), 
+            newVisits = getmode(newVisits),
+            channelID = getmode(channelID),
+            deviceID = getmode(deviceID),
+            sourceID = getmode(sourceID),
+            mediumID = getmode(mediumID),
+            countryID = getmode(countryID),
+            usedAds = getmode(usedAds)) %>%
+  arrange(custId)
+
+
+# create updated testing data frame
+# on here, the log of visitNumber, timesincelastvisit, and pageViews are taken
+# doing the same as how it was done on the training data
+newTest_update2 <- data.frame(log_visitnumber = log(dfTest_custId$visitNumber+1), 
+                              log_timesincelastvisit=log(dfTest_custId$timeSinceLastVisit+1), 
+                              log_pageviews=log(dfTest_custId$pageviews+1),
+                              channelID=dfTest_custId$channelID, deviceID=dfTest_custId$deviceID, 
+                              sourceID=dfTest_custId$sourceID, mediumID=dfTest_custId$mediumID,
+                              countryID=dfTest_custId$countryID, 
+                              bounces=dfTest_custId$bounces,newVisits=dfTest_custId$newVisits,
+                              usedAds=dfTest_custId$usedAds)
+
+# create an empty revenue column
+newTest_update2$revenue <- NA
+
+# the linear model that was used is the training data with imputation
+apply(newTest_update2,2,myMeanNAsFun) # check missingness
+
+result2 = predict(lm2, newTest_update2[,c( "log_visitnumber", "log_timesincelastvisit", "log_pageviews",
+                                          "channelID",   "deviceID", "sourceID", "mediumID","countryID",
+                                          "bounces", "newVisits")]) 
+summary(result2) # see summary of result from the linear model
+newTest_update2$revenue <- result2 # put result in revenue column
+apply(newTest_update2,2,myMeanNAsFun) # check NAs values for each attribute
+
+# using mice package for imputation
+# norm.predict is Linear regression, predicted values
+# it creates 30 of multiple imputations and impute missing values for 10 iterations
+imp_test2 <- mice(newTest_update2, m = 30, method = "norm.predict", maxit = 10)
+plot(imp_test2)
+
+# create df for imputed data
+imputed_dfTestAll <- as.data.frame(imp_test2$data)
+
+# append imputed variables to original data frame
+imputed_dfTestAll <- merge_imputations(imputed_dfTestAll, imp_test2, imputed_dfTestAll)
+# modify df accordingly
+imputed_dfTest <- imputed_dfTestAll[,-c(3,6,7,8,12)]
+colnames(imputed_dfTest)[8] <- "log_pageviews"
+colnames(imputed_dfTest)[9] <- "sourceID"
+colnames(imputed_dfTest)[10] <- "mediumID"
+colnames(imputed_dfTest)[11] <- "countryID"
+colnames(imputed_dfTest)[12] <- "revenue"
+# see if there is still any NAs
+apply(imputed_dfTest,2,myMeanNAsFun)
+
+# create df for submission
+submission =  data.frame(custId = dfTest_custId$custId, predRevenue = imputed_dfTest$revenue)
+# view the first few data in submission df
+head(submission)
+# see if there is any NAs
+apply(submission,2,myMeanNAsFun)
+
+submission <- submission %>% 
+  arrange(custId)
+
+# write submission to csv file
+path <- "C:\\Users\\Lince\\Documents\\Fall 2019\\DSA5103-IntelligentDataAnalysis\\HW\\HW-5\\submissions\\"
+submissionFile <- paste(path, "Submission.csv", sep = "")
+write.csv(submission, submissionFile)
+#write.csv(submission,"C:\\Users\\Lince\\Desktop\\Submission.csv")
+######################################
+####################
+# END OF PROBLEM 1 #
+####################
+```

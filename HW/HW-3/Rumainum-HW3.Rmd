@@ -1,0 +1,229 @@
+---
+title: "Rumainum-HW3"
+author: "Lince Rumainum"
+date: "September 17, 2019"
+output: word_document
+---
+
+## Intelligence Data Analysis - HW 3
+
+```{r, echo = TRUE}
+# List of libraries for HW 3
+library(mlbench)
+library(corrplot)
+library(Matrix)
+library(MASS)
+library(scales)
+library(grid)
+library(ggbiplot)
+library(Rtsne)
+library(tidyverse) 
+library(caret)
+
+# PROBLEM 1
+# load the Glass data from mlbench library
+data(Glass, package = 'mlbench')
+attach(Glass)
+
+# remove duplicated data from glass and exclude "Type" column
+Glass<-Glass[!duplicated(Glass[,-10]),]
+# column bind the Glass dataset with "Type" column
+Glass<-cbind(scale(Glass[,-10]),Glass[10])
+
+# Mathematics of PCA
+# Problem 1-a (i)
+# Create the correlation matrix & without the last column because it isn't numeric
+corMat <- cor(Glass[,-10])
+#show the correlation matrix
+corMat
+str(corMat)
+# Problem 1-a (ii)
+# compute the eigen values & vectors of corMat
+str(eigen(corMat))
+# store eigen values and eigen vectors accordingly
+(eigenValues <- eigen(corMat)$values)
+(eigenVectors <- eigen(corMat)$vectors)
+
+# Problem 1-a (iii)
+# compute pca using prcomp
+glass.pca <- prcomp(Glass[,-10],scale = T)
+
+# view the pca for Glass df
+glass.pca
+
+# Problem 1-a (iv)
+# The results from part (ii) and (iii) are the same because for the Principal Component Analysis model to be able to find a correlation between its variables, it has to do everything that part (ii) does. It reduces the original data's dimensions/features by computing its variance, its correlation matrix and a normalized eigen values and eigen vectors of that covariance matrix. Each of the principal components is responsible in explaining a certain percentage of the variation from the features in original data (highest percentage for PC1 and then PC2 (the next behind) and so on) and can be used as a linear combination to represent data that shows how it correlates with each other. Since the mathematics behind prcomp method is the same, both (ii) and (iii) create the same results.
+
+# Problem 1-a (v)
+#Using R demonstrate that principal components 1 and 2 from (iii) are orthogonal. (Hint: the inner product between two vectors is useful in determining the angle between the two vectors)
+# show results of PC1 and PC2 
+glass.pca$rotation[,1:2]
+
+sum <- 0 # initial sum of dot product to zero
+for (i in 1:nrow(glass.pca$rotation)){
+  # calculate the dot product between PC1 and PC2
+  sum <- sum + (glass.pca$rotation[i,1]*glass.pca$rotation[i,2])
+}
+sum # show the sum of the dot product
+
+#since their dot product is -4.857226e-17, which is very close to zero, it shows that they are orthogonal. 
+
+# Problem 1-b
+# Application of PCA
+# Problem 1-b (i)
+# i. Provide visualizations of the principal component analysis results from the Glass data. Consider incorporating the glass type to group and color your biplot.
+
+# all the biplots are groups by the glass type 
+# biplot for PCA 1 and PCA 2
+ggbiplot(glass.pca, obs.scale = 1, var.scale = 1, varname.size = 4, 
+         labels.size = 3, choices =(c(1,2)), groups = Glass$Type, circle=TRUE, ellipse = TRUE)
+
+# biplot for PCA 3 and PCA 4
+ggbiplot(glass.pca, obs.scale = 1, var.scale = 1, varname.size = 4, 
+         labels.size = 3, choices =(c(3,4)), groups = Glass$Type, circle=TRUE, ellipse = TRUE)
+# biplot for PCA 5 and PCA 6
+ggbiplot(glass.pca, obs.scale = 1, var.scale = 1, varname.size = 4, 
+         labels.size = 3, choices =(c(5,6)), groups = Glass$Type, circle=TRUE, ellipse = TRUE)
+
+# Problem 1-b (ii)
+# ii. Provide an interpretation of the first two prinicpal components the Glass data.
+# refer to PC1 and PC2 data from previous problem
+# From the previous plot of PC2 vs PC1 and the preview of PC1 and PC2 values on Problem 1-a (v), each data shows the coefficient of Principal Component 1 (PC1) and Principal Component 2 (PC2). It shows each coefficient for RI, Na, Mg, Al, Si, K, Ca, Ba, and Fe for when each of them is represent to a reduce dimension through linear combination of PC1 and PC2. It also shows that PC1 explained the variations of the original data by 27.9% and 22.9% for PC2. When using PC1 and PC2 the data present have 50.8% explained variance of the original data. PC1 distinguished a glass that contains Iron (Fe) with higher refractive index (RI), Calcium (Ca) and less Silicon (Si), Barium (Ba), Sodium (Na) and Aluminum (Al). While PC2 distinguished the type of glass that is either float or non-float processed type contains more Magnesium (Mg) and Fe while the other three types (containers, tableware, and headlamps) contains less of those and more Ca, Ba, Na, and Al
+
+# Problem 1-b (iii)
+# iii. Based on the the PCA results, do you believe that you can effectively reduce the dimension of the data? If so, to what degree? If not, why?
+
+summary(glass.pca) # summary of PCA of glass
+
+# steps to create a Cumulative Proportion of Variance Explained
+# compute the standard deviation of each PCs
+glass.std.dev <- glass.pca$sdev
+
+# compute its variance
+glass.var <- glass.std.dev^2
+
+# calculate the proportion of var explained
+glass.varex <- glass.var/sum(glass.var)
+
+# show how much variance explained by each PCs
+glass.varex
+
+# cumulative sum plot of PC1 to PC9
+plot(cumsum(glass.varex), xlab = "Principal Component", 
+     ylab = "Cumulative Proportion of Variance Explained", type = "b")
+
+# As it was in the summary and from the plot above, it is clear that the dimension can be reduce to 6-dimension for 95% representation and could easily cut by about half (4-dimension) for close to 80% variations explained instead of using all 9-dimension.
+
+# Problem 1-c
+#  Application of LDA
+# Problem 1-c (i)
+# i. Since the Glass data is grouped into various labeled glass types we can consider linear discriminant analysis (LDA) as another form of dimension reduction. Use the lda method from the MASS package to reduce the Glass data dimensionality.
+
+# set seed for 
+set.seed(1000)
+
+#  %>% is pipping method in R
+preproc.paramGlass <- Glass %>% preProcess(method = c("center", "scale")) 
+
+# Transform the data using the estimated parameters 
+transformed.Glass <- preproc.paramGlass %>% predict(Glass)
+
+# Fit the model 
+glass.lda.model <- lda(Type~., data = transformed.Glass) 
+glass.lda.model
+# predicted model
+predictions.Glass <- glass.lda.model %>% predict(transformed.Glass) 
+
+# play with perplexity (between 1 to 50), theta, max_iter 
+tsne_out <- Rtsne(transformed.Glass[,-10], pca=FALSE, perplexity = 30,
+                  theta = 0.0, max_iter = 50000, num_threads=6) # Run TSNE
+
+# put LD1, LD2, and glass type to data frame
+glass.df <- data.frame(x=tsne_out$Y[,1],y = tsne_out$Y[,2], type = Glass[,10])
+
+# create plot for the glass.df to see how type behave in LD1, LD2
+ggplot(data = glass.df, aes(x = x, y = y, group = type, color = type)) + geom_point()
+
+
+# Problem 1-c (ii)
+# ii. How would you interpret the first discriminant function, LD1?
+# So, as stated in the coefficient of linear discriminant of LD1 in Problem 1-c (i), it shows each coefficient for RI, Na, Mg, Al, Si, K, Ca, Ba, and Fe for them to be represent to a reduce dimension. It also shows in the proportion of trace part that the LD1 explained the variations of the original data by 81.45%. When using LD1 with LD2, which explained 93.13% of the original data, it shows that those maximizes the separation in the glass type especially on type 7 (see previous plot).
+
+# Problem 1-c (iii)
+# iii. Use the ldahist function from the MASS package to visualize the results for LD1 and LD2. Comment on the results.
+# LDA histogram for LD1 for each group
+par(mar=c(1,1,1,1)) # create margin for ldahist
+ldahist(predictions.Glass$x[,1], g = Glass$Type)
+# LDA histogram for LD2 for each group
+par(mar=c(1,1,1,1)) # create margin for ldahist
+ldahist(predictions.Glass$x[,2], g = Glass$Type)
+
+#Both LDA histograms above shows the variations of each Glass Type (Type 1, 2, 3, 5, 6, and 7 from top to bottom, respectively). From those histogram, it clearly shows how LD1 separated each type better than LD2 and how type 1, 2, and 3 (building windows float processed, building windows non-float processed, and vehicle windows float processed, respectively) are closely related which make sense since they are most likely to be made of similar elements than type 5, 6, and 7 (containers, tableware, and headlamps). 
+
+####################
+# END OF PROBLEM 1 #
+####################
+
+# PROBLEM 2
+fb.metrics <- read.csv(file="FB-metrics.csv", header=TRUE, sep=",")
+
+# Problem 2a
+
+fb.metrics.pca <- prcomp(fb.metrics[,8:18],scale = T)
+
+summary(fb.metrics.pca)
+
+# PC2 vs PC1 Gprah
+ggbiplot(fb.metrics.pca, obs.scale = 1, var.scale = 1, varname.size = 10, 
+         labels.size = 10, choices =(c(1,2)), groups = fb.metrics$Type, 
+         circle=TRUE, ellipse = TRUE)
+
+# zoom in version of the PC2 vs PC1 Gprah
+ggbiplot(fb.metrics.pca, obs.scale = 1, var.scale = 1, varname.size = 9, 
+         labels.size = 9, choices =(c(1,2)), groups = fb.metrics$Type, 
+         circle=TRUE, ellipse = TRUE) +
+  xlim (-5,10) +
+  ylim (-5,5)
+
+# The 11 evaluation features in Table 2 of the Moro et al. (2016) (excluding the total interactions) are lifetime post total reach, lifetime post total impressions, lifetime engaged users, lifetime post consumers, lifetime post consumptions, lifetime post impressions by people who have liked a page, lifetime post reach by people who like a page, lifetime people who have liked a page and engaged with a post, comment, likes, and shares.
+# Since some of the features are close related to each other in the PCA plot (Figure 6), it shows that shares, likes and comments are almost on the same vectors and engaged users and people who have liked a page and engaged with a post are also. From the graph it makes sense that the total impressions and total reach are close to its impressions and reach on people who like the page, respectively. Share, likes, and comments closely related on how others react to a product and how post consumers and consumptions are closely related to how consumers engaged to that product(s).
+
+
+
+# Problem 2b
+# LDA part of fb.metrics
+# set seed for 
+set.seed(1000)
+
+# create new data frame with all 11 features and type
+fb.metrics.features <-cbind(scale(fb.metrics[,8:18]),fb.metrics[2])
+
+#  %>% is pipping method in R
+preproc.paramFB <- fb.metrics.features %>% preProcess(method = c("center", "scale")) 
+
+# Transform the data using the estimated parameters 
+transformed.FB <- preproc.paramFB %>% predict(fb.metrics.features)
+
+# Fit the model 
+fb.lda.model <- lda(Type~., data = transformed.FB) 
+fb.lda.model
+# predicted model
+predictions.FB <- fb.lda.model %>% predict(transformed.FB) 
+
+# play with perplexity (between 1 to 50), theta, max_iter 
+tsne_out <- Rtsne(transformed.FB, pca=FALSE, perplexity = 40,
+                  theta = 0.0, max_iter = 20000, num_threads=6) # Run TSNE
+
+# put LD1, LD2, and fb type to data frame
+fb.df <- data.frame(x=tsne_out$Y[,1],y = tsne_out$Y[,2], type = fb.metrics[,2])
+
+# create plot for the fb.df to see how type behave in LD1, LD2
+ggplot(data = fb.df, aes(x = x, y = y, group = type, color = type)) + geom_point()
+
+# Now a Linear Discriminant Analysis (LDA) is made on the same data (the 11 evaluation features in Table 2 of the Moro et al. (2016) (excluding the total interactions)). In the LDA, the separation for each type of posting are showing much clearer. The links are on the bottom right corner while status on the middle left side. Both have a little variation on LD1 with more variation on the LD2 while photos have a lot more variations in both directions than any other type. From the summary of the LDA model, the LD1 in this case has 78.41% of proportion of trace while LD2 has 14.63%. The cumulative proportion of this LDA1 and LDA2 model is 93.04% which is much better than the cumulative proportion of PC1 and PC2 model (69.26%) in problem 2-a.
+####################
+# END OF PROBLEM 2 #
+####################
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
